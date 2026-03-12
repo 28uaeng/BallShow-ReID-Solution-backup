@@ -1,0 +1,28 @@
+# PyTorch
+*.pth
+*.pth.tar
+*.pt
+*.pkl
+*.model
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Project specific
+logs/
+data/
+weights/
+output/
