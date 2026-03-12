@@ -1,12 +1,12 @@
 MODEL:
   PRETRAIN_CHOICE: 'imagenet'
-  PRETRAIN_PATH: 'e:/服务外包创新大赛/Core/TransReID/weights/jx_vit_base_p16_224-80ecf9dd.pth'  # 预训练权重路径
+  PRETRAIN_PATH: 'weights/jx_vit_base_p16_224-80ecf9dd.pth'
   METRIC_LOSS_TYPE: 'triplet'
   IF_LABELSMOOTH: 'off'
   IF_WITH_CENTER: 'no'
   NAME: 'transformer'
   NO_MARGIN: True
-  DEVICE_ID: ('5')
+  DEVICE_ID: ('0')
   TRANSFORMER_TYPE: 'vit_base_patch16_224_TransReID'
   STRIDE_SIZE: [12, 12]
   SIE_CAMERA: True
@@ -25,7 +25,7 @@ INPUT:
 
 DATASETS:
   NAMES: ('ballshow')
-  ROOT_DIR: ('e:/服务外包创新大赛/Core')
+  ROOT_DIR: ('../BallShow-ReID')
 
 DATALOADER:
   SAMPLER: 'softmax_triplet'
@@ -55,5 +55,3 @@ TEST:
   FEAT_NORM: 'yes'
 
 OUTPUT_DIR: 'logs/BallShow_vit_transreid_stride'
-
-
