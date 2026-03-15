@@ -86,6 +86,10 @@ _C.INPUT.PIXEL_MEAN = [0.485, 0.456, 0.406]
 _C.INPUT.PIXEL_STD = [0.229, 0.224, 0.225]
 # Value of padding size
 _C.INPUT.PADDING = 10
+# Data augmentation options
+_C.INPUT.USE_OCCLUSION = False  # 遮挡增强
+_C.INPUT.USE_MOTION_BLUR = False  # 运动模糊增强
+_C.INPUT.USE_LIGHTING = False  # 光照增强
 
 # -----------------------------------------------------------------------------
 # Dataset

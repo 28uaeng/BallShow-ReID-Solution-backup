@@ -7,6 +7,7 @@ from timm.data.random_erasing import RandomErasing
 from .sampler import RandomIdentitySampler
 from .sampler_ddp import RandomIdentitySampler_DDP
 from .ballshow import BallShow
+from .transforms import RandomOcclusion, RandomMotionBlur, RandomLighting
 
 __factory = {
     'ballshow': BallShow,
@@ -29,16 +30,50 @@ def val_collate_fn(batch):
     return torch.stack(imgs, dim=0), pids, camids, camids_batch, viewids, img_paths
 
 def make_dataloader(cfg):
-    train_transforms = T.Compose([
-            T.Resize(cfg.INPUT.SIZE_TRAIN, interpolation=3),
-            T.RandomHorizontalFlip(p=cfg.INPUT.PROB),
-            T.Pad(cfg.INPUT.PADDING),
-            T.RandomCrop(cfg.INPUT.SIZE_TRAIN),
-            T.ToTensor(),
-            T.Normalize(mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD),
-            RandomErasing(probability=cfg.INPUT.RE_PROB, mode='pixel', max_count=1, device='cpu'),
-            # RandomErasing(probability=cfg.INPUT.RE_PROB, mean=cfg.INPUT.PIXEL_MEAN)
-        ])
+    # 基础变换
+    base_transforms = [
+        T.Resize(cfg.INPUT.SIZE_TRAIN, interpolation=3),
+        T.RandomHorizontalFlip(p=cfg.INPUT.PROB),
+    ]
+    
+    # 可选的遮挡增强（通过配置控制）
+    if getattr(cfg.INPUT, 'USE_OCCLUSION', False):
+        base_transforms.append(RandomOcclusion(
+            probability=0.2,
+            scale=(0.02, 0.15),
+            ratio=(0.3, 3.0)
+        ))
+        print("Using Occlusion Augmentation")
+    
+    # 可选的运动模糊增强
+    if getattr(cfg.INPUT, 'USE_MOTION_BLUR', False):
+        base_transforms.append(RandomMotionBlur(
+            probability=0.2,
+            kernel_size=(5, 15),
+            angle=(0, 360)
+        ))
+        print("Using Motion Blur Augmentation")
+    
+    # 可选的光照增强
+    if getattr(cfg.INPUT, 'USE_LIGHTING', False):
+        base_transforms.append(RandomLighting(
+            probability=0.3,
+            brightness=0.2,
+            contrast=0.2,
+            saturation=0.2
+        ))
+        print("Using Lighting Augmentation")
+    
+    # 继续其他标准变换
+    base_transforms.extend([
+        T.Pad(cfg.INPUT.PADDING),
+        T.RandomCrop(cfg.INPUT.SIZE_TRAIN),
+        T.ToTensor(),
+        T.Normalize(mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD),
+        RandomErasing(probability=cfg.INPUT.RE_PROB, mode='pixel', max_count=1, device='cpu'),
+    ])
+    
+    train_transforms = T.Compose(base_transforms)
 
     val_transforms = T.Compose([
         T.Resize(cfg.INPUT.SIZE_TEST),
