@@ -133,6 +133,40 @@ def do_train(cfg,
                 torch.cuda.empty_cache()
 
 
+def tta_inference(cfg, model, img, camids, target_view, device):
+    """
+    测试时增强 (Test-Time Augmentation)
+    - 原始图像
+    - 水平翻转图像
+    - 多尺度 (1.0x, 1.1x)
+    特征融合策略：平均
+    """
+    import torch.nn.functional as F
+    
+    # 1. 原始图像特征
+    feat_orig = model(img, cam_label=camids, view_label=target_view)
+    feat_orig = F.normalize(feat_orig, dim=1, p=2)
+    
+    # 2. 水平翻转图像
+    flip_img = torch.flip(img, dims=[3])  # 水平翻转
+    feat_flip = model(flip_img, cam_label=camids, view_label=target_view)
+    feat_flip = F.normalize(feat_flip, dim=1, p=2)
+    
+    # 3. 多尺度 (1.1x)
+    scale_factor = 1.1
+    scaled_size = (int(img.shape[2] * scale_factor), int(img.shape[3] * scale_factor))
+    img_scaled = F.interpolate(img, size=scaled_size, mode='bilinear', align_corners=True)
+    # 裁剪回原始尺寸
+    img_scaled = F.interpolate(img_scaled, size=(img.shape[2], img.shape[3]), mode='bilinear', align_corners=True)
+    feat_scaled = model(img_scaled, cam_label=camids, view_label=target_view)
+    feat_scaled = F.normalize(feat_scaled, dim=1, p=2)
+    
+    # 特征融合：平均
+    feat_fused = (feat_orig + feat_flip + feat_scaled) / 3.0
+    
+    return feat_fused
+
+
 def do_inference(cfg,
                  model,
                  val_loader,
@@ -154,12 +188,21 @@ def do_inference(cfg,
     model.eval()
     img_path_list = []
 
+    # TTA 开关：可以通过配置控制
+    use_tta = getattr(cfg.TEST, 'USE_TTA', False)  # 默认关闭
+    logger.info(f"Using TTA: {use_tta}")
+
     for n_iter, (img, pid, camid, camids, target_view, imgpath) in enumerate(val_loader):
         with torch.no_grad():
             img = img.to(device)
             camids = camids.to(device)
             target_view = target_view.to(device)
-            feat = model(img, cam_label=camids, view_label=target_view)
+            
+            if use_tta:
+                feat = tta_inference(cfg, model, img, camids, target_view, device)
+            else:
+                feat = model(img, cam_label=camids, view_label=target_view)
+            
             evaluator.update((feat, pid, camid))
             img_path_list.extend(imgpath)
 

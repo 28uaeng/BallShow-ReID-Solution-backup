@@ -21,6 +21,9 @@ env/
 .vscode/
 *.swp
 
+# Trae IDE
+.trae/
+
 # Project specific
 logs/
 data/
