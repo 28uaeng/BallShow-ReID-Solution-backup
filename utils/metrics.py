@@ -121,8 +121,8 @@ class R1_mAP_eval():
         g_camids = np.asarray(self.camids[self.num_query:])
         if self.reranking:
             print('=> Enter reranking')
-            # distmat = re_ranking(qf, gf, k1=20, k2=6, lambda_value=0.3)
-            distmat = re_ranking(qf, gf, k1=50, k2=15, lambda_value=0.3)
+            # 针对小数据集调整参数：k1 约为 query 数量的 1-2%
+            distmat = re_ranking(qf, gf, k1=10, k2=3, lambda_value=0.3)
 
         else:
             print('=> Computing DistMat with euclidean_distance')
