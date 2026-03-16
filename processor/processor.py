@@ -150,14 +150,14 @@ def tta_inference(cfg, model, img, camids, target_view, device):
     feat_orig = model(img, cam_label=camids, view_label=target_view)
     feat_orig = F.normalize(feat_orig, dim=1, p=2)
     features.append(feat_orig)
-    weights.append(0.8)
+    weights.append(0.6)
     
     # 2. 水平翻转图像（权重高）
     flip_img = torch.flip(img, dims=[3])
     feat_flip = model(flip_img, cam_label=camids, view_label=target_view)
     feat_flip = F.normalize(feat_flip, dim=1, p=2)
     features.append(feat_flip)
-    weights.append(1.2)
+    weights.append(1.5)
     
     # 3. 多尺度 1.05x（权重中等）
     scale_factor = 1.05
