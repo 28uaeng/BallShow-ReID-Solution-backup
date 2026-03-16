@@ -180,7 +180,7 @@ def tta_inference(cfg, model, img, camids, target_view, device):
     weights.append(1.0)
     
     # 加权融合
-    weights_tensor = torch.tensor(weights, device=device).view(-1, 1)
+    weights_tensor = torch.tensor(weights, device=device).view(-1, 1, 1)
     features_stack = torch.stack(features, dim=0)
     feat_fused = torch.sum(features_stack * weights_tensor, dim=0)
     
