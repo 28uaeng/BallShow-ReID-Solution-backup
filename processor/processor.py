@@ -135,34 +135,54 @@ def do_train(cfg,
 
 def tta_inference(cfg, model, img, camids, target_view, device):
     """
-    测试时增强 (Test-Time Augmentation)
+    测试时增强 (Test-Time Augmentation) - 增强版
     - 原始图像
     - 水平翻转图像
-    - 多尺度 (1.0x, 1.1x)
-    特征融合策略：平均
+    - 多尺度 (1.0x, 1.05x, 1.1x)
+    - 特征融合策略：加权平均（更鲁棒）
     """
     import torch.nn.functional as F
     
-    # 1. 原始图像特征
+    features = []
+    weights = []
+    
+    # 1. 原始图像特征（权重较低，因为可能不够鲁棒）
     feat_orig = model(img, cam_label=camids, view_label=target_view)
     feat_orig = F.normalize(feat_orig, dim=1, p=2)
+    features.append(feat_orig)
+    weights.append(0.8)
     
-    # 2. 水平翻转图像
-    flip_img = torch.flip(img, dims=[3])  # 水平翻转
+    # 2. 水平翻转图像（权重高）
+    flip_img = torch.flip(img, dims=[3])
     feat_flip = model(flip_img, cam_label=camids, view_label=target_view)
     feat_flip = F.normalize(feat_flip, dim=1, p=2)
+    features.append(feat_flip)
+    weights.append(1.2)
     
-    # 3. 多尺度 (1.1x)
-    scale_factor = 1.1
+    # 3. 多尺度 1.05x（权重中等）
+    scale_factor = 1.05
     scaled_size = (int(img.shape[2] * scale_factor), int(img.shape[3] * scale_factor))
     img_scaled = F.interpolate(img, size=scaled_size, mode='bilinear', align_corners=True)
-    # 裁剪回原始尺寸
     img_scaled = F.interpolate(img_scaled, size=(img.shape[2], img.shape[3]), mode='bilinear', align_corners=True)
     feat_scaled = model(img_scaled, cam_label=camids, view_label=target_view)
     feat_scaled = F.normalize(feat_scaled, dim=1, p=2)
+    features.append(feat_scaled)
+    weights.append(1.0)
     
-    # 特征融合：平均
-    feat_fused = (feat_orig + feat_flip + feat_scaled) / 3.0
+    # 4. 多尺度 1.1x（权重中等）
+    scale_factor = 1.1
+    scaled_size = (int(img.shape[2] * scale_factor), int(img.shape[3] * scale_factor))
+    img_scaled = F.interpolate(img, size=scaled_size, mode='bilinear', align_corners=True)
+    img_scaled = F.interpolate(img_scaled, size=(img.shape[2], img.shape[3]), mode='bilinear', align_corners=True)
+    feat_scaled = model(img_scaled, cam_label=camids, view_label=target_view)
+    feat_scaled = F.normalize(feat_scaled, dim=1, p=2)
+    features.append(feat_scaled)
+    weights.append(1.0)
+    
+    # 加权融合
+    weights_tensor = torch.tensor(weights, device=device).view(-1, 1)
+    features_stack = torch.stack(features, dim=0)
+    feat_fused = torch.sum(features_stack * weights_tensor, dim=0)
     
     return feat_fused
 
