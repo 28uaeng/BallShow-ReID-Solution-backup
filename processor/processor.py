@@ -138,35 +138,28 @@ def tta_inference(cfg, model, img, camids, target_view, device):
     测试时增强 (Test-Time Augmentation) - 增强版
     - 原始图像
     - 水平翻转图像
-    - 多尺度 (0.95x, 1.0x, 1.05x, 1.1x)
-    - 特征融合策略：加权平均（更鲁棒）+ 后归一化
+    - 多尺度 (1.0x, 1.05x, 1.1x)
+    - 特征融合策略：加权平均（更鲁棒）
     """
     import torch.nn.functional as F
     
     features = []
     weights = []
     
-    # 1. 原始图像特征（权重提高，基础特征更稳定）
+    # 1. 原始图像特征（权重较低，因为可能不够鲁棒）
     feat_orig = model(img, cam_label=camids, view_label=target_view)
     feat_orig = F.normalize(feat_orig, dim=1, p=2)
     features.append(feat_orig)
-    weights.append(0.8)
+    weights.append(0.6)
     
-    # 2. 水平翻转图像（权重高，最有效的增强）
+    # 2. 水平翻转图像（权重高）
     flip_img = torch.flip(img, dims=[3])
     feat_flip = model(flip_img, cam_label=camids, view_label=target_view)
     feat_flip = F.normalize(feat_flip, dim=1, p=2)
     features.append(feat_flip)
-    weights.append(1.6)
+    weights.append(1.5)
     
-    # 3. 多尺度 1.0x（权重中等偏高，原始尺度）
-    img_scaled = img.clone()
-    feat_scaled = model(img_scaled, cam_label=camids, view_label=target_view)
-    feat_scaled = F.normalize(feat_scaled, dim=1, p=2)
-    features.append(feat_scaled)
-    weights.append(1.2)
-    
-    # 4. 多尺度 1.05x（权重中等）
+    # 3. 多尺度 1.05x（权重中等）
     scale_factor = 1.05
     scaled_size = (int(img.shape[2] * scale_factor), int(img.shape[3] * scale_factor))
     img_scaled = F.interpolate(img, size=scaled_size, mode='bilinear', align_corners=True)
@@ -176,7 +169,7 @@ def tta_inference(cfg, model, img, camids, target_view, device):
     features.append(feat_scaled)
     weights.append(1.0)
     
-    # 5. 多尺度 1.1x（权重略低，避免过度放大噪声）
+    # 4. 多尺度 1.1x（权重中等）
     scale_factor = 1.1
     scaled_size = (int(img.shape[2] * scale_factor), int(img.shape[3] * scale_factor))
     img_scaled = F.interpolate(img, size=scaled_size, mode='bilinear', align_corners=True)
@@ -184,25 +177,12 @@ def tta_inference(cfg, model, img, camids, target_view, device):
     feat_scaled = model(img_scaled, cam_label=camids, view_label=target_view)
     feat_scaled = F.normalize(feat_scaled, dim=1, p=2)
     features.append(feat_scaled)
-    weights.append(0.9)
-    
-    # 6. 多尺度 0.95x（权重中等偏高，捕捉局部细节）
-    scale_factor = 0.95
-    scaled_size = (int(img.shape[2] * scale_factor), int(img.shape[3] * scale_factor))
-    img_scaled = F.interpolate(img, size=scaled_size, mode='bilinear', align_corners=True)
-    img_scaled = F.interpolate(img_scaled, size=(img.shape[2], img.shape[3]), mode='bilinear', align_corners=True)
-    feat_scaled = model(img_scaled, cam_label=camids, view_label=target_view)
-    feat_scaled = F.normalize(feat_scaled, dim=1, p=2)
-    features.append(feat_scaled)
-    weights.append(1.2)
+    weights.append(1.0)
     
     # 加权融合
     weights_tensor = torch.tensor(weights, device=device).view(-1, 1, 1)
     features_stack = torch.stack(features, dim=0)
     feat_fused = torch.sum(features_stack * weights_tensor, dim=0)
-    
-    # 融合后再次归一化，确保单位长度
-    feat_fused = F.normalize(feat_fused, dim=1, p=2)
     
     return feat_fused
 

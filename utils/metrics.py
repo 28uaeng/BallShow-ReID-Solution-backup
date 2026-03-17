@@ -12,6 +12,19 @@ def euclidean_distance(qf, gf):
     dist_mat.addmm_(1, -2, qf, gf.t())
     return dist_mat.cpu().numpy()
 
+
+def cosine_distance(qf, gf):
+    """
+    余弦距离：1 - 余弦相似度
+    值越小表示越相似
+    """
+    qf_norm = torch.nn.functional.normalize(qf, dim=1)
+    gf_norm = torch.nn.functional.normalize(gf, dim=1)
+    similarity = torch.mm(qf_norm, gf_norm.t())
+    distance = 1 - similarity
+    return distance.cpu().numpy()
+
+
 def cosine_similarity(qf, gf):
     epsilon = 0.00001
     dist_mat = qf.mm(gf.t())
@@ -125,8 +138,8 @@ class R1_mAP_eval():
             distmat = re_ranking(qf, gf, k1=10, k2=3, lambda_value=0.3)
 
         else:
-            print('=> Computing DistMat with euclidean_distance')
-            distmat = euclidean_distance(qf, gf)
+            print('=> Computing DistMat with cosine_distance')
+            distmat = cosine_distance(qf, gf)
         cmc, mAP = eval_func(distmat, q_pids, g_pids, q_camids, g_camids)
 
         return cmc, mAP, distmat, self.pids, self.camids, qf, gf
