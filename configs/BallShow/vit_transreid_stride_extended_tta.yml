@@ -1,5 +1,4 @@
-# 扩展 TTA 配置：5 种增强 + 加权融合
-# 预期：mAP 92.2-92.5%, Rank-1 94.0-94.5%
+# TTA 配置：4 种增强 + 加权融合
 
 MODEL:
   PRETRAIN_CHOICE: 'imagenet'
@@ -28,7 +27,7 @@ INPUT:
 
 DATASETS:
   NAMES: ('ballshow')
-  ROOT_DIR: ('../BallShow-ReID')
+  ROOT_DIR: ('../')
 
 DATALOADER:
   SAMPLER: 'softmax_triplet'
